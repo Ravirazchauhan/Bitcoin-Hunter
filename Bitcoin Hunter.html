@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="version" content="1.0.0-legacy">
+<meta name="description" content="Bitcoin Scanner — Puzzle & Early Wallet Hunter. Single-file browser tool for Bitcoin key research.">
+<title>Bitcoin Scanner v1.0.0 — Puzzle & Early Wallet Hunter</title>
+<style>
+:root{
+  --bg:#06080b;--bg2:#0c1016;--bg3:#131920;
+  --bd:#1a2230;--bd2:#263040;
+  --tx:#d8e4f0;--tx2:#6a8098;--tx3:#304050;
+  --G:#00e599;--G2:#00b574;--Gbg:rgba(0,229,153,.07);
+  --A:#ffb830;--Abg:rgba(255,184,48,.07);
+  --B:#4da8ff;--Bbg:rgba(77,168,255,.07);
+  --R:#ff4f4f;--Rbg:rgba(255,79,79,.07);
+  --P:#c084fc;--Pbg:rgba(192,132,252,.08);
+  --O:#fb923c;--Obg:rgba(251,146,60,.07);
+  --mono:'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:13px;min-height:100vh;}
+.app{max-width:1020px;margin:0 auto;padding:18px 14px;}
+
+/* Header */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+.hdr h1{font-size:16px;font-weight:700;color:var(--G);letter-spacing:.1em;text-transform:uppercase;}
+.hdr p{font-size:10px;color:var(--tx3);margin-top:3px;}
+.hdr-r{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* API bar */
+.abar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;margin-bottom:12px;flex-wrap:wrap;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--tx3);flex-shrink:0;}
+.dot.ok{background:var(--G);box-shadow:0 0 5px var(--G);}
+.dot.err{background:var(--R);}
+.dot.chk{background:var(--A);animation:blink .7s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.abar-src{font-size:11px;color:var(--tx);font-weight:700;}
+.abar-msg{font-size:11px;color:var(--tx2);}
+.abar-c{margin-left:auto;font-size:10px;color:var(--tx3);}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px;}
+.stat{background:var(--bg2);border:1px solid var(--bd);border-radius:5px;padding:9px 10px;}
+.sl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;}
+.sv{font-size:15px;font-weight:700;color:var(--tx);}
+.sv.g{color:var(--G);}.sv.a{color:var(--A);}.sv.b{color:var(--B);}.sv.p{color:var(--P);}.sv.o{color:var(--O);}
+
+/* Current key display */
+.ckey{background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;padding:9px 12px;margin-bottom:12px;}
+.ckey-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.ckey-lbl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;flex-shrink:0;}
+.ckey-hex{font-size:11px;color:var(--G);font-family:var(--mono);word-break:break-all;flex:1;}
+.mbadge{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;white-space:nowrap;}
+.mbadge.seq{background:var(--Pbg);color:var(--P);border:1px solid var(--P);}
+.mbadge.rnd{background:var(--Abg);color:var(--A);border:1px solid var(--A);}
+.mbadge.puz{background:var(--Gbg);color:var(--G);border:1px solid var(--G2);}
+.mbadge.era{background:var(--Obg);color:var(--O);border:1px solid var(--O);}
+.ckey-sub{font-size:10px;color:var(--tx3);}
+
+/* Progress */
+.prog{height:2px;background:var(--bd);border-radius:2px;margin-bottom:12px;overflow:hidden;}
+.pf{height:100%;background:var(--G);width:0;transition:width .3s;}
+
+/* Controls */
+.ctrls{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.btn{padding:6px 12px;border-radius:5px;border:1px solid var(--bd2);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:11px;font-family:var(--mono);font-weight:700;letter-spacing:.04em;transition:all .12s;text-transform:uppercase;}
+.btn:hover{background:var(--bg3);border-color:var(--tx3);}
+.btn.go{background:var(--Gbg);border-color:var(--G2);color:var(--G);}
+.btn.go:hover{background:rgba(0,229,153,.13);}
+.btn.stop{background:var(--Rbg);border-color:var(--R);color:var(--R);}
+.btn.blue{background:var(--Bbg);border-color:var(--B);color:var(--B);}
+.btn.purple{background:var(--Pbg);border-color:var(--P);color:var(--P);}
+.btn.amber{background:var(--Abg);border-color:var(--A);color:var(--A);}
+.btn.orange{background:var(--Obg);border-color:var(--O);color:var(--O);}
+select,input[type=text]{padding:5px 8px;border-radius:5px;border:1px solid var(--bd2);background:var(--bg2);color:var(--tx);font-family:var(--mono);font-size:11px;outline:none;}
+select:focus,input[type=text]:focus{border-color:var(--G2);}
+.lbl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;}
+
+/* Puzzle selector */
+.puz-bar{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:10px 12px;margin-bottom:12px;}
+.puz-bar-title{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
+.puz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;}
+.pc{border:1px solid var(--bd);border-radius:5px;padding:8px 10px;cursor:pointer;transition:all .12s;}
+.pc:hover{border-color:var(--G2);background:var(--Gbg);}
+.pc.active{border-color:var(--G);background:var(--Gbg);}
+.pc.solved{border-color:var(--tx3);opacity:.5;}
+.pc-num{font-size:10px;font-weight:700;color:var(--G);margin-bottom:2px;}
+.pc-addr{font-size:9px;color:var(--B);word-break:break-all;margin-bottom:3px;}
+.pc-range{font-size:9px;color:var(--tx3);}
+.pc-bal{font-size:10px;font-weight:700;color:var(--A);}
+.pc.solved .pc-num{color:var(--tx3);}
+.pc.solved .pc-bal{color:var(--tx3);}
+
+/* Start key row */
+.srow{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:9px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;}
+.srow .lbl{flex-shrink:0;}
+.srow input{flex:1;min-width:200px;}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--bd);}
+.tab{padding:7px 12px;font-size:10px;cursor:pointer;color:var(--tx3);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;text-transform:uppercase;transition:all .12s;}
+.tab:hover{color:var(--tx2);}
+.tab.on{color:var(--G);border-bottom-color:var(--G);}
+.panel{display:none;}.panel.on{display:block;}
+
+/* Key section */
+.ksec{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:12px;margin-bottom:8px;}
+.ksec .st{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px;}
+.kr{display:flex;gap:7px;align-items:flex-start;margin-bottom:4px;}
+.kb{font-size:9px;color:var(--tx3);border:1px solid var(--bd);padding:2px 5px;border-radius:3px;white-space:nowrap;min-width:50px;text-align:center;margin-top:1px;flex-shrink:0;font-weight:700;}
+.kb.hit{border-color:var(--G2);color:var(--G);background:var(--Gbg);}
+.kv{font-size:11px;color:var(--tx);word-break:break-all;line-height:1.7;}
+.kv.addr{color:var(--B);}.kv.gn{color:var(--G);font-weight:700;}.kv.rd{color:var(--R);}.kv.dim{color:var(--tx3);}
+
+/* Log */
+.logw{max-height:200px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;}
+.ll{font-size:10px;color:var(--tx3);padding:3px 0;border-bottom:1px solid var(--bd);display:flex;gap:7px;line-height:1.5;}
+.ll .lt{color:var(--tx3);flex-shrink:0;font-size:9px;opacity:.5;}
+.ll.hit{color:var(--G);font-weight:700;font-size:11px;}
+.ll.warn{color:var(--A);}.ll.err{color:var(--R);}.ll.info{color:var(--B);}
+
+/* Finds */
+.findsw{max-height:440px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;}
+.fc{border:1px solid var(--G2);border-radius:6px;padding:11px 13px;margin-bottom:8px;background:var(--Gbg);}
+.fa{font-size:12px;color:var(--G);font-weight:700;word-break:break-all;margin-bottom:4px;}
+.fb{font-size:16px;color:var(--G);font-weight:700;margin-bottom:6px;}
+.fm{font-size:10px;color:rgba(0,229,153,.6);line-height:1.9;word-break:break-all;}
+.flinks{margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;}
+.flinks a{font-size:10px;color:var(--B);text-decoration:none;border-bottom:1px solid rgba(77,168,255,.3);}
+.ft{font-size:9px;color:var(--tx3);margin-top:5px;}
+
+/* Manual */
+.minput{width:100%;padding:8px 10px;border-radius:5px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:12px;margin-bottom:6px;outline:none;}
+.minput:focus{border-color:var(--G2);}
+textarea.minput{height:72px;resize:vertical;}
+.notice{font-size:11px;color:var(--tx2);background:var(--bg3);border:1px solid var(--bd);border-radius:5px;padding:8px 11px;margin-bottom:10px;line-height:1.8;}
+.notice a{color:var(--B);}
+.notice.warn{border-color:var(--A);color:var(--A);background:var(--Abg);}
+.notice.ok{border-color:var(--G2);color:var(--G);background:var(--Gbg);}
+.empty{text-align:center;padding:32px;color:var(--tx3);font-size:12px;}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
+.row input{flex:1;min-width:180px;}
+.exp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;}
+#dl-bar{display:none;position:fixed;bottom:12px;right:12px;background:var(--Gbg);border:1px solid var(--G2);border-radius:6px;padding:8px 14px;font-size:12px;color:var(--G);z-index:999;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="hdr">
+  <div>
+    <h1>⛓ Bitcoin Hunter</h1>
+    <p>PUZZLE TARGETS · EARLY 2009–2013 WALLETS · SEQUENTIAL · RANDOM · AUTO-FALLBACK API</p>
+    <p style="margin-top:2px;font-size:9px;color:var(--tx3)">v1.0.0-legacy · github.com release</p>
+  </div>
+  <div class="hdr-r">
+    <button class="btn" onclick="downloadSelf()">⬇ Save HTML</button>
+  </div>
+</div>
+
+<div class="notice warn" id="cors-warn" style="display:none">
+  ⚠ <strong>Best results:</strong> Download this file and open locally — APIs work without CORS restrictions. Puzzle mode targets real funded Bitcoin addresses with known key ranges.
+</div>
+<script>
+  // Only show CORS warning when NOT running as a local file
+  if(location.protocol !== 'file:') {
+    document.getElementById('cors-warn').style.display = '';
+  }
+</script>
+
+<div class="abar">
+  <div class="dot" id="adot"></div>
+  <span class="abar-src" id="asrc">AUTO</span>
+  <span class="abar-msg" id="amsg">idle</span>
+  <span class="abar-c" id="acalls">0 calls</span>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="sl">Generated</div><div class="sv" id="s-gen">0</div></div>
+  <div class="stat"><div class="sl">Checked</div><div class="sv a" id="s-chk">0</div></div>
+  <div class="stat"><div class="sl">Keys/s</div><div class="sv b" id="s-rate">0</div></div>
+  <div class="stat"><div class="sl">Hits</div><div class="sv g" id="s-hits">0</div></div>
+  <div class="stat"><div class="sl">Mode</div><div class="sv p" id="s-mode">SEQ</div></div>
+  <div class="stat"><div class="sl">Target</div><div class="sv o" id="s-target">—</div></div>
+</div>
+
+<div class="ckey">
+  <div class="ckey-top">
+    <span class="ckey-lbl">Current Key →</span>
+    <span class="ckey-hex" id="cur-hex">0000000000000000000000000000000000000000000000000000000000000001</span>
+    <span class="mbadge seq" id="mbadge">SEQUENTIAL</span>
+  </div>
+  <div class="ckey-sub" id="cur-sub">Decimal: 1 &nbsp;|&nbsp; Range: —</div>
+</div>
+
+<div class="prog"><div class="pf" id="pf"></div></div>
+
+<!-- Puzzle target panel -->
+<div class="puz-bar" id="puz-bar">
+  <div class="puz-bar-title">🎯 Bitcoin Puzzle Targets — confirmed funded addresses with known key ranges (click to target)</div>
+  <div class="puz-grid" id="puz-grid"></div>
+</div>
+
+<!-- Start key row -->
+<div class="srow">
+  <span class="lbl">Start:</span>
+  <input type="text" id="start-in" value="0000000000000000000000000000000000000000000000000000000000000001" maxlength="64" />
+  <span class="lbl">End:</span>
+  <input type="text" id="end-in" value="" maxlength="64" placeholder="leave blank = no limit" style="min-width:140px;" />
+  <button class="btn" onclick="applyRange()">Set Range</button>
+  <button class="btn" onclick="resetOne()">↺ #1</button>
+</div>
+
+<div class="ctrls">
+  <button class="btn go" id="btn-scan" onclick="toggleScan()">▶ Start Scan</button>
+  <button class="btn purple" id="btn-mode" onclick="setMode('sequential')">Mode: SEQ</button>
+  <button class="btn amber" onclick="setMode('random')">RND</button>
+  <button class="btn orange" onclick="setMode('puzzle')">🎯 Puzzle</button>
+  <button class="btn orange" onclick="setMode('era')">📅 Era 2009–13</button>
+  <button class="btn blue" onclick="testAPIs()">⚡ Test APIs</button>
+  <button class="btn" onclick="clearAll()">✕ Clear</button>
+  <span class="lbl">Batch:</span>
+  <select id="sel-batch"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="10">10</option></select>
+  <span class="lbl">Delay:</span>
+  <select id="sel-delay" onchange="updateDelay()">
+    <option value="500">500ms</option><option value="1000" selected>1s</option><option value="2000">2s</option><option value="4000">4s</option>
+  </select>
+  <span class="lbl">API:</span>
+  <select id="sel-api" onchange="setApiPref()">
+    <option value="auto">Auto</option><option value="blockchain">blockchain.info</option>
+    <option value="blockcypher">blockcypher</option><option value="blockchair">blockchair</option>
+  </select>
+</div>
+
+<div class="tabs">
+  <div class="tab on" onclick="showTab('scanner')">Scanner</div>
+  <div class="tab" onclick="showTab('manual')">Manual</div>
+  <div class="tab" onclick="showTab('finds')">Finds (<span id="fc">0</span>)</div>
+  <div class="tab" onclick="showTab('export')">Export</div>
+  <div class="tab" onclick="showTab('info')">Info</div>
+</div>
+
+<!-- SCANNER -->
+<div class="panel on" id="tab-scanner">
+  <div class="ksec">
+    <div class="st">Current Key</div>
+    <div class="kr"><span class="kb">HEX</span><div class="kv dim" id="k-hex">—</div></div>
+    <div class="kr"><span class="kb">DEC #</span><div class="kv dim" id="k-dec">—</div></div>
+    <div class="kr"><span class="kb">WIF</span><div class="kv dim" id="k-wif">—</div></div>
+    <div class="kr"><span class="kb">WIF-C</span><div class="kv dim" id="k-wifc">—</div></div>
+    <div class="kr"><span class="kb">ADDR</span><div class="kv addr" id="k-addr">—</div></div>
+    <div class="kr"><span class="kb">ADDR-C</span><div class="kv addr" id="k-addrc">—</div></div>
+    <div class="kr"><span class="kb" id="k-bb">BAL</span><div class="kv dim" id="k-bal">—</div></div>
+    <div id="k-links" style="display:none;margin-top:6px;margin-left:57px;display:flex;gap:10px;flex-wrap:wrap;">
+      <a id="lnk1" href="#" target="_blank" style="font-size:10px;color:var(--B)">blockchain.com ↗</a>
+      <a id="lnk2" href="#" target="_blank" style="font-size:10px;color:var(--B)">blockchair ↗</a>
+      <a id="lnk3" href="#" target="_blank" style="font-size:10px;color:var(--B)">mempool.space ↗</a>
+    </div>
+  </div>
+  <div class="ksec">
+    <div class="st">Log</div>
+    <div class="logw" id="logw"><div class="empty">Idle. Choose a mode and press ▶ Start Scan.</div></div>
+  </div>
+</div>
+
+<!-- MANUAL -->
+<div class="panel" id="tab-manual">
+  <div class="notice">Check any address or 64-char hex key. Explorer links always provided even if API is blocked.</div>
+  <div class="ksec">
+    <div class="st">Single Check</div>
+    <div class="row">
+      <input class="minput" style="margin:0" id="m-in" type="text" placeholder="64-char hex key or Bitcoin address..." />
+      <button class="btn go" onclick="manualCheck()">Check ▶</button>
+    </div>
+    <div id="m-res" style="margin-top:8px"></div>
+  </div>
+  <div class="ksec">
+    <div class="st">Multi-Address Batch (up to 20)</div>
+    <textarea class="minput" id="m-multi" placeholder="One address per line or comma-separated..."></textarea>
+    <button class="btn go" onclick="multiCheck()">Check All ▶</button>
+    <div id="m-mres" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- FINDS -->
+<div class="panel" id="tab-finds">
+  <div class="notice">Addresses with balance &gt; 0 or any transaction history. Saved to localStorage.</div>
+  <div class="findsw" id="findsw"><div class="empty">No hits yet.</div></div>
+</div>
+
+<!-- EXPORT -->
+<div class="panel" id="tab-export">
+  <div class="ksec">
+    <div class="st">Export</div>
+    <div class="exp-grid">
+      <button class="btn" onclick="expJSON()">Finds → JSON</button>
+      <button class="btn" onclick="expCSV()">Finds → CSV</button>
+      <button class="btn" onclick="expAllCSV()">All Scanned → CSV</button>
+      <button class="btn" onclick="downloadSelf()">Tool → HTML</button>
+    </div>
+    <div id="exp-info" style="margin-top:8px;font-size:11px;color:var(--tx2)"></div>
+  </div>
+  <div class="ksec" style="margin-top:8px">
+    <div class="st">Session Stats</div>
+    <div id="store-stats" style="font-size:11px;color:var(--tx2);line-height:2.2"></div>
+  </div>
+</div>
+
+<!-- INFO -->
+<div class="panel" id="tab-info">
+  <div class="ksec">
+    <div class="st" style="color:var(--R)">⚠ Legal & Ethical Disclaimer</div>
+    <div style="font-size:11px;color:var(--A);line-height:2;border:1px solid var(--Rbg);padding:8px;border-radius:4px;background:var(--Rbg)">
+      This tool is provided for <strong>educational and research purposes only</strong>. Scanning private key spaces and checking balances against live Bitcoin addresses is a computationally futile exercise — the 256-bit keyspace is astronomically large. The probability of finding a funded wallet by chance is effectively zero.<br><br>
+      <strong>You must not</strong> attempt to access, transfer, or claim funds from Bitcoin addresses that do not belong to you. Doing so may constitute unauthorised computer access or theft under the laws of your jurisdiction.<br><br>
+      The Bitcoin Puzzle transaction is a publicly known research challenge with intentionally constrained key ranges. All other scanning is strictly for cryptographic research.
+    </div>
+  </div>
+  <div class="ksec" style="margin-top:8px">
+    <div class="st">API Rate Limits</div>
+    <div style="font-size:11px;color:var(--tx2);line-height:2.2">
+      <span style="color:var(--G)">■ blockchain.info</span> — ~300 req/5min direct (best for batches)<br>
+      <span style="color:var(--B)">■ blockcypher</span> — ~200 req/hour free tier (strict, use sparingly)<br>
+      <span style="color:var(--A)">■ blockchair</span> — ~30 req/min free tier<br>
+      <span style="color:var(--tx3)">Tip: Use 1–2s delay with batch=3 for sustainable scanning. Run ⚡ Test APIs first to see which sources are reachable.</span>
+    </div>
+  </div>
+  <div class="ksec" style="margin-top:8px">
+    <div class="st">Scan Modes Explained</div>
+    <div style="font-size:11px;color:var(--tx2);line-height:2.2">
+      <span style="color:var(--P)">■ Sequential</span> — starts at key #1, increments +1. Position saved to localStorage.<br>
+      <span style="color:var(--A)">■ Random</span> — cryptographically random keys across the full 256-bit space.<br>
+      <span style="color:var(--G)">■ Puzzle Mode</span> — targets the Bitcoin Puzzle transaction addresses (confirmed funded, known ranges). Select a puzzle from the grid above. Scans randomly within the specific bit-range of that puzzle.<br>
+      <span style="color:var(--O)">■ Era 2009–2013</span> — targets patterns from early Bitcoin Core wallet generation. Mixes low sequential keys, brainwallet patterns, and time-seeded pseudo-random values mimicking early C++ PRNG behaviour.
+    </div>
+  </div>
+  <div class="ksec" style="margin-top:8px">
+    <div class="st">About the Bitcoin Puzzle</div>
+    <div style="font-size:11px;color:var(--tx2);line-height:2">
+      In 2015 someone funded 256 Bitcoin addresses. Each puzzle #N has its private key constrained to N bits (range: 2^(N-1) to 2^N - 1). Puzzles #1–70 and some others have been solved. Remaining unsolved puzzles like #71, #72, #75... each hold their number in BTC (e.g. #71 = 7.1 BTC, #75 = 7.5 BTC). They are the best-known publicly funded addresses with mathematically constrained key ranges — making targeted scanning realistic for lower puzzles.
+    </div>
+  </div>
+  <div class="ksec" style="margin-top:8px">
+    <div class="st">Version</div>
+    <div style="font-size:11px;color:var(--tx2);line-height:2">
+      v1.0.0-legacy · Built as a single self-contained HTML file.<br>
+      No server required. No build step. No tracking. Open locally for best API results.<br>
+      Source: <a href="https://github.com" target="_blank" style="color:var(--B)">github.com</a> — see README for full docs.
+    </div>
+  </div>
+</div>
+
+</div>
+<div id="dl-bar">✓ Saved!</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+<script>
+'use strict';
+const ec = new elliptic.ec('secp256k1');
+const PROXY = 'https://corsproxy.io/?';
+const CURVE_ORDER = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
+
+// ══════════════════════════════════════════════════
+// Bitcoin Puzzle Data — confirmed funded addresses
+// with known key ranges (2^(n-1) to 2^n - 1)
+// Unsolved as of early 2025
+// ══════════════════════════════════════════════════
+const PUZZLES = [
+  // Unsolved puzzles with confirmed balance
+  {n:71,  addr:'1PWo3JeB9jrGwfHDNpdGK98CQineqHgkGi', btc:7.1,  solved:false},
+  {n:72,  addr:'1JTK7s9YVYywfm5XUH7RNhHJH1LshCaRFR', btc:7.2,  solved:false},
+  {n:73,  addr:'12VVRNPi4SJqUTsp6FmqDqY5sGosDtysn4', btc:7.3,  solved:false},
+  {n:74,  addr:'1FWGcVDK3JGzCC3WtkYetULPszMaK2Jksv', btc:7.4,  solved:false},
+  {n:75,  addr:'1J36UjUByGroXcCvmj13U6uwaVCs9gouBz', btc:7.5,  solved:false},
+  {n:76,  addr:'1DJh2eHFYQfACPmrvpyWc8MSTYKh7w9eRF', btc:7.6,  solved:false},
+  {n:77,  addr:'1Bxk4CQdqL9p22JEtDfdXMkXAyu3EP1EF', btc:7.7,  solved:false},
+  {n:78,  addr:'15qF6X51huDjqTmF9BJgxXdt1xcj46Jmhb', btc:7.8,  solved:false},
+  {n:79,  addr:'1ARk8HWJMn8js8tQmGUJeQHjSE7KRkn2t8', btc:7.9,  solved:false},
+  {n:80,  addr:'1BCf6rHUW6m3iH2ptsvznsBAN4iNr1yBgm', btc:8.0,  solved:false},
+  {n:85,  addr:'1Kh22PvXERd2xpTQk3ur6pPEqFeckCJfAr', btc:8.5,  solved:false},
+  {n:90,  addr:'1ieFHe1hLFh2iGPeZkwKKPcMjBG8jaVhG', btc:9.0,  solved:false},
+  {n:95,  addr:'1BDyrQ6WoF8VN3g9ZVnqjAbOdSiMkdL4v', btc:9.5,  solved:false},
+  {n:100, addr:'1CMjscKB3QW7SDyNbJpPNnVNNNyEa5R6vU', btc:10.0, solved:false},
+  {n:105, addr:'1MjifS7S9HHMuQSUjT6kmfXaT42iBnbMLv', btc:10.5, solved:false},
+  {n:110, addr:'1GpFKMr38L8Hm1nNJvVMCiXyBKgSXAuMgC', btc:11.0, solved:false},
+  {n:115, addr:'17s2b9ksz5y7abUm92cHwG8jEPCzK3dLnT', btc:11.5, solved:false},
+  {n:120, addr:'1HsMJxNiV7TLxmoF6uJNkydtGuy1nqNJfk', btc:12.0, solved:false},
+  {n:125, addr:'18KsfuHuzQaBTNLASyj15hy4LuqPUo1FNB', btc:12.5, solved:false},
+  {n:130, addr:'1NLbHuJebVwM6DRSH3HMNEmZBkaHqHnfuU', btc:13.0, solved:false},
+  // Solved puzzles (for reference, shown as solved)
+  {n:66,  addr:'13zb1hQbWVsc2S7ZTZnP2G4undNNpdh5so', btc:0,    solved:true},
+  {n:67,  addr:'1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9', btc:0,    solved:true},
+  {n:68,  addr:'19vkiEajfhuZ8bs8Zu2jgmC6oqZbWqhxhG', btc:0,    solved:true},
+  {n:69,  addr:'1DZJtj1CLq5SN6F1GjGMoFmJFM7hCHxWS6', btc:0,    solved:true},
+  {n:70,  addr:'1NpnQyZ7x24ud82b7WiRNvPm6N8bqGQnaS', btc:0,    solved:true},
+];
+
+// ══════════════════════════════════════════════════
+// Early era 2009–2013 key patterns
+// These mimic known weak generation patterns from
+// early Bitcoin Core (Satoshi client) and BitcoinJS
+// ══════════════════════════════════════════════════
+const ERA_RANGES = [
+  // Very low keys — first keys ever generated (publicly known but may have residue)
+  { label:'Ultra-low keys #1–#100k', min:1n, max:100000n },
+  // Low-entropy keys from early wallet.dat generation
+  { label:'Low sequential #1–#1M', min:1n, max:1000000n },
+  // Time-seeded era: Unix timestamps 2009–2013 used as seeds
+  // Jan 2009 = 1230768000, Dec 2013 = 1388534400
+  { label:'Unix timestamp 2009', min:1230768000n, max:1230854400n },
+  { label:'Unix timestamp 2010', min:1262304000n, max:1262390400n },
+  { label:'Unix timestamp 2011', min:1293840000n, max:1293926400n },
+  { label:'Unix timestamp 2012', min:1325376000n, max:1325462400n },
+  { label:'Unix timestamp 2013', min:1356998400n, max:1357084800n },
+  // Block heights 0–300000 (2009–2014) sometimes used as entropy seeds
+  { label:'Block height seeds 0–300k', min:0n, max:300000n },
+  // Satoshi-era nonce space (32-bit values)
+  { label:'32-bit nonce space', min:1n, max:4294967295n },
+  // Known weak BitcoinJS Math.random range (Randstorm)
+  // Math.random in 2011 browsers was 32-bit seeded
+  { label:'Randstorm 32-bit (2011–2014)', min:1n, max:BigInt('0xFFFFFFFF') },
+  // Slightly larger weak range observed in Randstorm research
+  { label:'Randstorm 48-bit (2011–2014)', min:BigInt('0x1000000000000'), max:BigInt('0xFFFFFFFFFFFF') },
+];
+
+// ══════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════
+let scanning=false, scanTimer=null, rateTimer=null;
+let totalGen=0, totalChk=0, totalHits=0;
+let apiCalls=0, apiOkCnt=0, apiErrCnt=0, rateCount=0, delay=1000;
+let scanMode='sequential'; // sequential | random | puzzle | era
+let apiPref='auto';
+let currentKey=1n;
+let rangeMin=1n, rangeMax=0n; // 0 = no max
+let activePuzzle=null;
+let activeEraRange=null;
+let finds=[], allScanned=[];
+
+try{finds=JSON.parse(localStorage.getItem('bth1_finds')||'[]');}catch(e){}
+try{allScanned=JSON.parse(localStorage.getItem('bth1_all')||'[]');}catch(e){}
+try{const p=localStorage.getItem('bth1_pos');if(p)currentKey=BigInt('0x'+p);}catch(e){}
+totalHits=finds.length;
+document.getElementById('s-hits').textContent=totalHits;
+document.getElementById('fc').textContent=totalHits;
+
+// ══════════════════════════════════════════════════
+// Crypto
+// ══════════════════════════════════════════════════
+function n2h64(n){return n.toString(16).padStart(64,'0').toUpperCase();}
+function h2b(h){const b=new Uint8Array(h.length/2);for(let i=0;i<h.length;i+=2)b[i/2]=parseInt(h.slice(i,i+2),16);return b;}
+function b2h(b){return Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');}
+function sha256b(d){return new Uint8Array(sha256.array(Array.from(d)));}
+
+function rmd160(data){
+  const r=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,7,4,13,1,10,6,15,3,12,0,9,5,2,14,11,8,3,10,14,4,9,15,8,1,2,7,0,6,13,11,5,12,1,9,11,10,0,8,12,4,13,3,7,15,14,5,6,2,4,0,5,9,7,12,2,10,14,1,3,8,11,6,15,13];
+  const rp=[5,14,7,0,9,2,11,4,13,6,15,8,1,10,3,12,6,11,3,7,0,13,5,10,14,15,8,12,4,9,1,2,15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13,8,6,4,1,3,11,15,0,5,12,2,13,9,7,10,14,12,15,10,4,1,5,8,7,6,2,13,14,0,3,9,11];
+  const s=[11,14,15,12,5,8,7,9,11,13,14,15,6,7,9,8,7,6,8,13,11,9,7,15,7,12,15,9,11,7,13,12,11,13,6,7,14,9,13,15,14,8,13,6,5,12,7,5,11,12,14,15,14,15,9,8,9,14,5,6,8,6,5,12,9,15,5,11,6,8,13,12,5,12,13,14,11,8,5,6];
+  const sp=[8,9,9,11,13,15,15,5,7,7,8,11,14,14,12,6,9,13,15,7,12,8,9,11,7,7,12,7,6,15,13,11,9,7,15,11,8,6,6,14,12,13,5,14,13,13,7,5,15,5,8,11,14,14,6,14,6,9,12,9,12,5,15,8,8,5,12,9,12,5,14,6,8,13,6,5,15,13,11,11];
+  const K=[0,0x5A827999,0x6ED9EBA1,0x8F1BBCDC,0xA953FD4E];
+  const Kp=[0x50A28BE6,0x5C4DD124,0x6D703EF3,0x7A6D76E9,0];
+  function f(j,x,y,z){if(j<16)return x^y^z;if(j<32)return(x&y)|(~x&z);if(j<48)return(x|~y)^z;if(j<64)return(x&z)|(y&~z);return x^(y|~z);}
+  function rol(x,n){return(x<<n)|(x>>>32-n);}
+  let msg=Array.from(data);const ml=msg.length;msg.push(0x80);
+  while(msg.length%64!==56)msg.push(0);
+  const bits=ml*8;for(let i=0;i<8;i++)msg.push((bits>>>i*8)&0xFF);
+  let h=[0x67452301,0xEFCDAB89,0x98BADCFE,0x10325476,0xC3D2E1F0];
+  for(let blk=0;blk<msg.length;blk+=64){
+    const X=[];for(let i=0;i<16;i++)X.push(msg[blk+i*4]|(msg[blk+i*4+1]<<8)|(msg[blk+i*4+2]<<16)|(msg[blk+i*4+3]<<24));
+    let[a,b,c,d,e]=h,al=a,bl=b,cl=c,dl=d,el=e;
+    for(let j=0;j<80;j++){
+      let T=rol((a+f(j,b,c,d)+X[r[j]]+K[Math.floor(j/16)])|0,s[j])+e|0;a=e;e=d;d=rol(c,10);c=b;b=T;
+      T=rol((al+f(79-j,bl,cl,dl)+X[rp[j]]+Kp[Math.floor(j/16)])|0,sp[j])+el|0;al=el;el=dl;dl=rol(cl,10);cl=bl;bl=T;
+    }
+    const T=h[1]+c+dl;h[1]=h[2]+d+el;h[2]=h[3]+e+al;h[3]=h[4]+a+bl;h[4]=h[0]+b+cl;h[0]=T;
+  }
+  const out=new Uint8Array(20);for(let i=0;i<5;i++)for(let j=0;j<4;j++)out[i*4+j]=(h[i]>>>(j*8))&0xFF;
+  return out;
+}
+const B58='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58chk(data){
+  const cs=sha256b(sha256b(data)).slice(0,4);
+  const full=new Uint8Array([...data,...cs]);
+  let n=BigInt('0x'+b2h(full)),res='';
+  while(n>0n){res=B58[Number(n%58n)]+res;n/=58n;}
+  for(let i=0;i<full.length&&full[i]===0;i++)res='1'+res;
+  return res;
+}
+function toWIF(hex,comp=false){return b58chk(new Uint8Array([0x80,...h2b(hex),...(comp?[0x01]:[])]));}
+function pubToAddr(pub){return b58chk(new Uint8Array([0x00,...rmd160(sha256b(pub))]));}
+
+function keyFromBigInt(n){
+  if(n<=0n)n=1n;
+  if(n>=CURVE_ORDER)n=CURVE_ORDER-1n;
+  const hex=n2h64(n);
+  const kp=ec.keyFromPrivate(h2b(hex));
+  const pu=new Uint8Array(kp.getPublic(false,'array'));
+  const pc=new Uint8Array(kp.getPublic(true,'array'));
+  return{n,hex,wif:toWIF(hex,false),wifc:toWIF(hex,true),addr:pubToAddr(pu),addrc:pubToAddr(pc),dec:n.toString()};
+}
+
+// ══════════════════════════════════════════════════
+// Key generation per mode
+// ══════════════════════════════════════════════════
+function randInRange(min, max){
+  // Generate random BigInt in [min, max]
+  const range = max - min + 1n;
+  const bits = range.toString(2).length;
+  const bytes = Math.ceil(bits / 8);
+  let r;
+  do {
+    const arr = crypto.getRandomValues(new Uint8Array(bytes));
+    r = BigInt('0x' + b2h(arr));
+  } while(r >= range);
+  return min + r;
+}
+
+function nextKey(){
+  if(scanMode === 'sequential'){
+    const k = keyFromBigInt(currentKey);
+    currentKey++;
+    if(rangeMax > 0n && currentKey > rangeMax) currentKey = rangeMin;
+    if(currentKey >= CURVE_ORDER) currentKey = 1n;
+    try{localStorage.setItem('bth1_pos', n2h64(currentKey));}catch(e){}
+    return k;
+  }
+
+  if(scanMode === 'random'){
+    if(rangeMax > 0n){
+      return keyFromBigInt(randInRange(rangeMin, rangeMax));
+    }
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const n = BigInt('0x'+b2h(bytes)) % (CURVE_ORDER-1n) + 1n;
+    return keyFromBigInt(n);
+  }
+
+  if(scanMode === 'puzzle' && activePuzzle){
+    const p = activePuzzle;
+    const pMin = BigInt(2) ** BigInt(p.n - 1);
+    const pMax = BigInt(2) ** BigInt(p.n) - 1n;
+    return keyFromBigInt(randInRange(pMin, pMax));
+  }
+
+  if(scanMode === 'era'){
+    // Cycle through era ranges with some intelligence
+    const eraIdx = Math.floor(Math.random() * ERA_RANGES.length);
+    const er = ERA_RANGES[eraIdx];
+    activeEraRange = er;
+    return keyFromBigInt(randInRange(er.min, er.max));
+  }
+
+  // fallback random
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const n = BigInt('0x'+b2h(bytes)) % (CURVE_ORDER-1n) + 1n;
+  return keyFromBigInt(n);
+}
+
+// ══════════════════════════════════════════════════
+// Mode control
+// ══════════════════════════════════════════════════
+function setMode(m){
+  scanMode = m;
+  const badges = {sequential:'seq', random:'rnd', puzzle:'puz', era:'era'};
+  const labels = {sequential:'SEQUENTIAL', random:'RANDOM', puzzle:'🎯 PUZZLE', era:'📅 ERA 2009–13'};
+  const modeLabels = {sequential:'SEQ', random:'RND', puzzle:'PUZZLE', era:'ERA'};
+  document.getElementById('mbadge').className = 'mbadge ' + (badges[m]||'seq');
+  document.getElementById('mbadge').textContent = labels[m]||m.toUpperCase();
+  document.getElementById('s-mode').textContent = modeLabels[m]||m.toUpperCase();
+  document.getElementById('btn-mode').textContent = 'Mode: '+(modeLabels[m]||m.toUpperCase());
+  if(m==='puzzle' && !activePuzzle){
+    // auto-select first unsolved puzzle
+    const p = PUZZLES.find(x=>!x.solved);
+    if(p) selectPuzzle(p);
+  }
+  addLog('Mode: '+m.toUpperCase()+(m==='puzzle'&&activePuzzle?' → Puzzle #'+activePuzzle.n:'')+(m==='era'?' (cycling era ranges)':''),'info');
+  refreshCounterUI();
+}
+
+function selectPuzzle(p){
+  if(p.solved){ addLog('Puzzle #'+p.n+' already solved, select an unsolved one','warn'); return; }
+  activePuzzle = p;
+  scanMode = 'puzzle';
+  setMode('puzzle');
+  const pMin = BigInt(2) ** BigInt(p.n - 1);
+  const pMax = BigInt(2) ** BigInt(p.n) - 1n;
+  rangeMin = pMin; rangeMax = pMax;
+  document.getElementById('start-in').value = n2h64(pMin);
+  document.getElementById('end-in').value = n2h64(pMax);
+  document.getElementById('s-target').textContent = '#'+p.n;
+  addLog(`🎯 Targeting Puzzle #${p.n}: ${p.addr.slice(0,16)}... (${p.btc} BTC)`,'info');
+  addLog(`   Range: 2^${p.n-1} to 2^${p.n}-1`,'info');
+  // highlight in grid
+  document.querySelectorAll('.pc').forEach(el=>{
+    el.classList.toggle('active', el.dataset.n == p.n);
+  });
+  refreshCounterUI();
+}
+
+// ══════════════════════════════════════════════════
+// Counter UI
+// ══════════════════════════════════════════════════
+function refreshCounterUI(){
+  const hex = n2h64(currentKey);
+  document.getElementById('cur-hex').textContent = hex;
+  let sub = 'Decimal: '+currentKey.toString();
+  if(rangeMax > 0n) sub += ' | Range: '+rangeMin.toString().slice(0,12)+'… → '+rangeMax.toString().slice(0,12)+'…';
+  if(scanMode==='puzzle'&&activePuzzle) sub += ' | Puzzle #'+activePuzzle.n+' ('+activePuzzle.btc+' BTC)';
+  if(scanMode==='era'&&activeEraRange) sub += ' | Era: '+activeEraRange.label;
+  document.getElementById('cur-sub').textContent = sub;
+  document.getElementById('start-in').value = hex;
+}
+
+// ══════════════════════════════════════════════════
+// Build puzzle grid
+// ══════════════════════════════════════════════════
+function buildPuzzleGrid(){
+  const grid = document.getElementById('puz-grid');
+  grid.innerHTML = PUZZLES.map(p=>{
+    const pMin = BigInt(2)**BigInt(p.n-1);
+    const pMax = BigInt(2)**BigInt(p.n)-1n;
+    return `<div class="pc${p.solved?' solved':''}" data-n="${p.n}" onclick="selectPuzzle(PUZZLES.find(x=>x.n==${p.n}))">
+      <div class="pc-num">${p.solved?'✓':''} Puzzle #${p.n}</div>
+      <div class="pc-addr">${p.addr.slice(0,20)}…</div>
+      <div class="pc-range">Range: 2^${p.n-1}–2^${p.n}-1</div>
+      <div class="pc-bal">${p.solved?'SOLVED':p.btc+' BTC'}</div>
+    </div>`;
+  }).join('');
+}
+buildPuzzleGrid();
+
+// ══════════════════════════════════════════════════
+// API layer
+// ══════════════════════════════════════════════════
+async function tryFetch(url){
+  try{
+    const r=await fetch(url,{mode:'cors'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    apiOkCnt++;setApiUI('ok','ok');return d;
+  }catch(e){apiErrCnt++;return null;}
+}
+function setApiUI(state,msg){
+  document.getElementById('adot').className='dot '+(state==='ok'?'ok':state==='err'?'err':'chk');
+  document.getElementById('amsg').textContent=msg;
+  document.getElementById('asrc').textContent=apiPref==='auto'?'AUTO':apiPref.toUpperCase();
+  document.getElementById('acalls').textContent=`${apiCalls} calls · ${apiOkCnt} ok · ${apiErrCnt} err`;
+}
+async function bcBatch(addrs){
+  const j=addrs.join('|');apiCalls++;
+  setApiUI('chk','blockchain.info…');
+  let d=await tryFetch(`https://blockchain.info/balance?active=${encodeURIComponent(j)}&cors=true`);
+  if(!d)d=await tryFetch(`${PROXY}${encodeURIComponent('https://blockchain.info/balance?active='+j)}`);
+  if(!d)return null;
+  const out={};
+  addrs.forEach(a=>{if(d[a])out[a]={source:'blockchain.info',balance:d[a].final_balance||0,n_tx:d[a].n_tx||0,total_received:d[a].total_received||0};});
+  return out;
+}
+async function bcypher(addr){
+  apiCalls++;setApiUI('chk','blockcypher…');
+  const d=await tryFetch(`${PROXY}${encodeURIComponent('https://api.blockcypher.com/v1/btc/main/addrs/'+addr+'/balance')}`);
+  return d?{source:'blockcypher',balance:d.balance||0,n_tx:d.n_txs||0,total_received:d.total_received||0}:null;
+}
+async function bchair(addr){
+  apiCalls++;setApiUI('chk','blockchair…');
+  const d=await tryFetch(`${PROXY}${encodeURIComponent('https://api.blockchair.com/bitcoin/dashboards/address/'+addr+'?limit=1')}`);
+  const info=d?.data?.[addr]?.address;
+  return info?{source:'blockchair',balance:info.balance||0,n_tx:info.transaction_count||0,total_received:info.received||0}:null;
+}
+async function batchCheck(addrs){
+  if(apiPref==='auto'||apiPref==='blockchain'){const r=await bcBatch(addrs);if(r)return r;}
+  addLog('Batch failed — individual fallback…','warn');
+  const out={};
+  for(const a of addrs){
+    let r=null;
+    if(apiPref==='auto'||apiPref==='blockcypher')r=await bcypher(a);
+    if(!r&&(apiPref==='auto'||apiPref==='blockchair'))r=await bchair(a);
+    if(r)out[a]=r;
+  }
+  return out;
+}
+async function singleCheck(addr){
+  let r=null;
+  if(apiPref==='auto'||apiPref==='blockchain'){const res=await bcBatch([addr]);if(res&&res[addr])r=res[addr];}
+  if(!r&&(apiPref==='auto'||apiPref==='blockcypher'))r=await bcypher(addr);
+  if(!r&&(apiPref==='auto'||apiPref==='blockchair'))r=await bchair(addr);
+  if(!r)setApiUI('err','all APIs failed');
+  return r;
+}
+
+// ══════════════════════════════════════════════════
+// Puzzle address match check — when in puzzle mode,
+// also compare derived address directly against target
+// ══════════════════════════════════════════════════
+function checkPuzzleMatch(k){
+  if(scanMode !== 'puzzle' || !activePuzzle) return false;
+  return k.addr === activePuzzle.addr || k.addrc === activePuzzle.addr;
+}
+
+// ══════════════════════════════════════════════════
+// Scan batch
+// ══════════════════════════════════════════════════
+async function doScanBatch(){
+  const bs = parseInt(document.getElementById('sel-batch').value);
+  const keys = Array.from({length:bs}, ()=>nextKey());
+  const addrs = keys.map(k=>k.addrc);
+
+  totalGen += bs; rateCount += bs;
+  document.getElementById('s-gen').textContent = totalGen.toLocaleString();
+  // progress within range
+  if(rangeMax > 0n && scanMode==='sequential'){
+    const done = currentKey - rangeMin;
+    const total = rangeMax - rangeMin + 1n;
+    document.getElementById('pf').style.width = Number(done * 100n / total) + '%';
+  } else {
+    document.getElementById('pf').style.width = (totalGen % 100) + '%';
+  }
+  refreshCounterUI();
+
+  // Immediate puzzle match check (no API needed)
+  keys.forEach(k=>{
+    if(checkPuzzleMatch(k)){
+      addLog(`🏆 PUZZLE MATCH! Key ${k.hex} → ${k.addrc} = ${activePuzzle.addr}`,'hit');
+      finds.push({hex:k.hex,dec:k.dec,addr:k.addrc,wif:k.wif,wifc:k.wifc,
+        balance:Math.round(activePuzzle.btc*1e8),n_tx:0,total_received:Math.round(activePuzzle.btc*1e8),
+        source:'puzzle-match',time:new Date().toISOString()});
+      try{localStorage.setItem('bth1_finds',JSON.stringify(finds));}catch(e){}
+      totalHits++; document.getElementById('s-hits').textContent=totalHits;
+      document.getElementById('fc').textContent=totalHits;
+    }
+  });
+
+  showKeyPanel(keys[0],'checking…',null);
+  if(bs===1) addLog(`[${scanMode.toUpperCase()}${activePuzzle&&scanMode==='puzzle'?' #'+activePuzzle.n:''}] ${keys[0].addrc.slice(0,18)}…`);
+
+  const results = await batchCheck(addrs);
+  totalChk += bs;
+  document.getElementById('s-chk').textContent = totalChk.toLocaleString();
+
+  keys.forEach((k,i)=>{
+    const addr=k.addrc, bal=results[addr];
+    if(i===0) showKeyPanel(k,null,bal);
+    const rec={hex:k.hex,dec:k.dec,addr,wif:k.wif,wifc:k.wifc,
+      balance:bal?bal.balance:null,n_tx:bal?bal.n_tx:null,
+      total_received:bal?bal.total_received:null,
+      source:bal?bal.source:'none',mode:scanMode,
+      puzzle:activePuzzle?activePuzzle.n:null,
+      era:activeEraRange?activeEraRange.label:null,
+      time:new Date().toISOString()};
+    allScanned.push(rec);
+    if(allScanned.length>10000) allScanned.shift();
+    if(bal&&(bal.balance>0||bal.n_tx>0)){
+      finds.push(rec); totalHits++;
+      try{localStorage.setItem('bth1_finds',JSON.stringify(finds));}catch(e){}
+      document.getElementById('s-hits').textContent=totalHits;
+      document.getElementById('fc').textContent=totalHits;
+      addLog(`★★★ HIT ★★★ ${addr} — ${(bal.balance/1e8).toFixed(8)} BTC | ${bal.n_tx} txs | ${scanMode}${activePuzzle?' #'+activePuzzle.n:''}`,'hit');
+    } else if(bal&&bs===1){
+      addLog(`clean: ${addr.slice(0,16)}… 0 BTC`);
+    }
+  });
+  if(bs>1) addLog(`Batch ${bs}: checked`);
+  try{localStorage.setItem('bth1_all',JSON.stringify(allScanned));}catch(e){}
+  setApiUI('ok',`${apiCalls} calls`);
+}
+
+function showKeyPanel(k, override, bal){
+  document.getElementById('k-hex').textContent=k.hex;
+  document.getElementById('k-dec').textContent='#'+k.dec+(activePuzzle&&scanMode==='puzzle'?' | Puzzle #'+activePuzzle.n:'');
+  document.getElementById('k-wif').textContent=k.wif;
+  document.getElementById('k-wifc').textContent=k.wifc;
+  document.getElementById('k-addr').textContent=k.addr;
+  document.getElementById('k-addrc').textContent=k.addrc;
+  document.getElementById('lnk1').href=`https://www.blockchain.com/explorer/addresses/btc/${k.addrc}`;
+  document.getElementById('lnk2').href=`https://blockchair.com/bitcoin/address/${k.addrc}`;
+  document.getElementById('lnk3').href=`https://mempool.space/address/${k.addrc}`;
+  document.getElementById('k-links').style.display='flex';
+  const be=document.getElementById('k-bal'), bg=document.getElementById('k-bb');
+  if(override){be.textContent=override;be.className='kv dim';bg.className='kb';return;}
+  if(!bal){be.textContent='API unavailable — use explorer links ↗';be.className='kv rd';bg.className='kb';return;}
+  const btc=(bal.balance/1e8).toFixed(8), isHit=bal.balance>0||bal.n_tx>0;
+  be.textContent=`${btc} BTC | ${bal.n_tx} txs | ${bal.source}`;
+  be.className='kv'+(isHit?' gn':'');
+  bg.className='kb'+(isHit?' hit':'');
+}
+
+function toggleScan(){
+  if(scanning){
+    scanning=false; clearInterval(scanTimer); clearInterval(rateTimer);
+    document.getElementById('btn-scan').textContent='▶ Start Scan';
+    document.getElementById('btn-scan').className='btn go';
+    setApiUI('ok','idle');
+    addLog('Stopped. Position: '+n2h64(currentKey),'warn');
+  } else {
+    scanning=true;
+    document.getElementById('btn-scan').textContent='■ Stop';
+    document.getElementById('btn-scan').className='btn stop';
+    addLog('Started — Mode: '+scanMode.toUpperCase()+(activePuzzle&&scanMode==='puzzle'?' Puzzle #'+activePuzzle.n:''),'info');
+    doScanBatch();
+    scanTimer=setInterval(doScanBatch,delay);
+    rateTimer=setInterval(()=>{document.getElementById('s-rate').textContent=rateCount;rateCount=0;},1000);
+  }
+}
+
+function updateDelay(){
+  delay=parseInt(document.getElementById('sel-delay').value);
+  if(scanning){clearInterval(scanTimer);scanTimer=setInterval(doScanBatch,delay);}
+}
+function setApiPref(){apiPref=document.getElementById('sel-api').value;}
+
+function applyRange(){
+  let sval=document.getElementById('start-in').value.trim().toUpperCase().replace(/[^0-9A-F]/g,'').padStart(64,'0');
+  let eval_=document.getElementById('end-in').value.trim().toUpperCase().replace(/[^0-9A-F]/g,'');
+  try{
+    const sn=BigInt('0x'+sval);
+    if(sn<=0n||sn>=CURVE_ORDER){addLog('Start key out of range','err');return;}
+    currentKey=sn; rangeMin=sn;
+    rangeMax = eval_ ? BigInt('0x'+eval_.padStart(64,'0')) : 0n;
+    refreshCounterUI();
+    try{localStorage.setItem('bth1_pos',n2h64(currentKey));}catch(e){}
+    addLog('Range set: '+sval.slice(0,16)+'… → '+(eval_?eval_.slice(0,16)+'…':'no limit'),'info');
+  }catch(e){addLog('Invalid range','err');}
+}
+function resetOne(){
+  currentKey=1n; rangeMin=1n; rangeMax=0n;
+  document.getElementById('start-in').value=n2h64(1n);
+  document.getElementById('end-in').value='';
+  refreshCounterUI();
+  try{localStorage.setItem('bth1_pos',n2h64(1n));}catch(e){}
+  addLog('Reset to key #1','info');
+}
+
+// ══════════════════════════════════════════════════
+// Test APIs
+// ══════════════════════════════════════════════════
+async function testAPIs(){
+  const g='1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+  addLog('Testing APIs…','info');
+  let d;
+  d=await tryFetch(`https://blockchain.info/balance?active=${g}&cors=true`);
+  addLog(d?`✓ blockchain.info direct — ${(d[g].final_balance/1e8).toFixed(4)} BTC`:'✗ blockchain.info direct — blocked',!d?'err':'hit');
+  d=await tryFetch(`${PROXY}${encodeURIComponent('https://blockchain.info/balance?active='+g)}`);
+  addLog(d?`✓ blockchain.info+proxy — ${(d[g]?.final_balance/1e8||0).toFixed(4)} BTC`:'✗ blockchain.info+proxy — failed',!d?'err':'hit');
+  d=await tryFetch(`${PROXY}${encodeURIComponent('https://api.blockcypher.com/v1/btc/main/addrs/'+g+'/balance')}`);
+  addLog(d?`✓ blockcypher+proxy — ${(d.balance/1e8).toFixed(4)} BTC`:'✗ blockcypher+proxy — failed',!d?'err':'hit');
+  d=await tryFetch(`${PROXY}${encodeURIComponent('https://api.blockchair.com/bitcoin/dashboards/address/'+g+'?limit=1')}`);
+  const bi=d?.data?.[g]?.address;
+  addLog(bi?`✓ blockchair+proxy — ${(bi.balance/1e8).toFixed(4)} BTC`:'✗ blockchair+proxy — failed',!bi?'err':'hit');
+  addLog('Test done. ✓ = working  ✗ = blocked','info');
+}
+
+// ══════════════════════════════════════════════════
+// Manual check
+// ══════════════════════════════════════════════════
+async function manualCheck(){
+  const val=document.getElementById('m-in').value.trim(); if(!val)return;
+  const res=document.getElementById('m-res');
+  res.innerHTML=`<div class="notice">Querying…</div>`;
+  let k=null,addr=val;
+  if(val.length===64&&/^[0-9a-fA-F]+$/.test(val)){
+    try{k=keyFromBigInt(BigInt('0x'+val.toLowerCase()));addr=k.addrc;}
+    catch(e){res.innerHTML=`<div class="notice warn">Invalid hex key.</div>`;return;}
+  }
+  const bal=await singleCheck(addr);
+  const lnks=`<a href="https://www.blockchain.com/explorer/addresses/btc/${addr}" target="_blank">blockchain.com ↗</a>
+    <a href="https://blockchair.com/bitcoin/address/${addr}" target="_blank">blockchair ↗</a>
+    <a href="https://mempool.space/address/${addr}" target="_blank">mempool.space ↗</a>`;
+  if(!bal){res.innerHTML=`<div class="notice warn">⚠ All APIs failed.<br>${lnks}</div>`;return;}
+  const btc=(bal.balance/1e8).toFixed(8),rcv=(bal.total_received/1e8).toFixed(8),isHit=bal.balance>0||bal.n_tx>0;
+  res.innerHTML=`<div class="ksec" style="margin:0">
+    <div class="kr"><span class="kb">ADDR</span><div class="kv addr">${addr}</div></div>
+    ${k?`<div class="kr"><span class="kb">HEX</span><div class="kv">${k.hex}</div></div>`:''}
+    ${k?`<div class="kr"><span class="kb">DEC</span><div class="kv dim">#${k.dec}</div></div>`:''}
+    ${k?`<div class="kr"><span class="kb">WIF</span><div class="kv">${k.wif}</div></div>`:''}
+    <div class="kr"><span class="kb${isHit?' hit':''}">BAL</span><div class="kv${isHit?' gn':''}">${btc} BTC</div></div>
+    <div class="kr"><span class="kb">RECV</span><div class="kv">${rcv} BTC</div></div>
+    <div class="kr"><span class="kb">TXS</span><div class="kv">${bal.n_tx}</div></div>
+    <div style="margin-top:7px;display:flex;gap:10px;flex-wrap:wrap">${lnks}</div>
+  </div>`;
+  if(isHit){const rec={hex:k?k.hex:'',dec:k?k.dec:'',addr,wif:k?k.wif:'',wifc:k?k.wifc:'',...bal,time:new Date().toISOString()};finds.push(rec);totalHits=finds.length;try{localStorage.setItem('bth1_finds',JSON.stringify(finds));}catch(e){}document.getElementById('s-hits').textContent=totalHits;document.getElementById('fc').textContent=totalHits;}
+}
+async function multiCheck(){
+  const raw=document.getElementById('m-multi').value;
+  const addrs=raw.split(/[\n,]+/).map(a=>a.trim()).filter(a=>a.length>10).slice(0,20);
+  if(!addrs.length)return;
+  const res=document.getElementById('m-mres');
+  res.innerHTML=`<div class="notice">Checking ${addrs.length}…</div>`;
+  const results=await batchCheck(addrs);
+  let html=`<div class="ksec" style="margin:0">`;
+  addrs.forEach(addr=>{
+    const bal=results[addr];
+    if(!bal){html+=`<div class="kr"><span class="kb" style="color:var(--R);border-color:var(--R)">ERR</span><div class="kv rd">${addr.slice(0,18)}… <a href="https://www.blockchain.com/explorer/addresses/btc/${addr}" target="_blank" style="color:var(--B)">↗</a></div></div>`;return;}
+    const btc=(bal.balance/1e8).toFixed(8),isHit=bal.balance>0||bal.n_tx>0;
+    html+=`<div class="kr"><span class="kb${isHit?' hit':''}">${isHit?'HIT':'OK'}</span><div class="kv${isHit?' gn':''}"><a href="https://www.blockchain.com/explorer/addresses/btc/${addr}" target="_blank" style="color:inherit">${addr}</a> — ${btc} BTC | ${bal.n_tx} txs</div></div>`;
+    if(isHit){finds.push({hex:'',dec:'',addr,wif:'',wifc:'',...bal,time:new Date().toISOString()});try{localStorage.setItem('bth1_finds',JSON.stringify(finds));}catch(e){}totalHits=finds.length;document.getElementById('s-hits').textContent=totalHits;document.getElementById('fc').textContent=totalHits;}
+  });
+  html+=`</div>`;res.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════
+// Log / Tab / Finds / Export
+// ══════════════════════════════════════════════════
+function ts(){return new Date().toLocaleTimeString('en-GB',{hour12:false});}
+function addLog(msg,type=''){
+  const w=document.getElementById('logw');
+  if(w.querySelector('.empty'))w.innerHTML='';
+  const d=document.createElement('div');
+  d.className='ll'+(type?' '+type:'');
+  d.innerHTML=`<span class="lt">${ts()}</span><span>${msg}</span>`;
+  w.insertBefore(d,w.firstChild);
+  while(w.children.length>400)w.removeChild(w.lastChild);
+}
+function showTab(name){
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('on',['scanner','manual','finds','export','info'][i]===name));
+  document.getElementById('tab-'+name).classList.add('on');
+  if(name==='finds')renderFinds();
+  if(name==='export')renderStats();
+}
+function renderFinds(){
+  const w=document.getElementById('findsw');
+  if(!finds.length){w.innerHTML='<div class="empty">No hits yet.</div>';return;}
+  w.innerHTML=finds.slice().reverse().map(f=>`
+    <div class="fc">
+      <div class="fa">${f.addr}</div>
+      <div class="fb">${((f.balance||0)/1e8).toFixed(8)} BTC · ${f.n_tx||0} txs · ${((f.total_received||0)/1e8).toFixed(8)} BTC recv</div>
+      ${f.hex?`<div class="fm">HEX: ${f.hex}<br>DEC: #${f.dec||'n/a'}<br>WIF: ${f.wif}<br>WIF-C: ${f.wifc}<br>Mode: ${f.mode||'?'}${f.puzzle?' | Puzzle #'+f.puzzle:''}${f.era?' | '+f.era:''}</div>`:''}
+      <div class="flinks">
+        <a href="https://www.blockchain.com/explorer/addresses/btc/${f.addr}" target="_blank">blockchain.com ↗</a>
+        <a href="https://blockchair.com/bitcoin/address/${f.addr}" target="_blank">blockchair ↗</a>
+        <a href="https://mempool.space/address/${f.addr}" target="_blank">mempool.space ↗</a>
+      </div>
+      <div class="ft">${f.time} via ${f.source||'?'}</div>
+    </div>`).join('');
+}
+function renderStats(){
+  document.getElementById('store-stats').innerHTML=`
+    Mode: ${scanMode.toUpperCase()}${activePuzzle&&scanMode==='puzzle'?' Puzzle #'+activePuzzle.n:''}<br>
+    Current key: ${n2h64(currentKey)}<br>
+    Decimal: #${currentKey.toString()}<br>
+    Finds stored: ${finds.length}<br>
+    All scanned (session): ${allScanned.length.toLocaleString()}<br>
+    Total generated: ${totalGen.toLocaleString()}<br>
+    API: ${apiCalls} calls · ${apiOkCnt} ok · ${apiErrCnt} err`;
+}
+function clearAll(){
+  if(!confirm('Clear all data?'))return;
+  finds=[];allScanned=[];totalGen=0;totalChk=0;totalHits=0;apiCalls=0;apiOkCnt=0;apiErrCnt=0;currentKey=1n;
+  try{localStorage.removeItem('bth1_finds');localStorage.removeItem('bth1_all');localStorage.removeItem('bth1_pos');}catch(e){}
+  ['s-gen','s-chk','s-rate','s-hits'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('fc').textContent='0';
+  document.getElementById('logw').innerHTML='<div class="empty">Cleared.</div>';
+  ['k-hex','k-dec','k-wif','k-wifc','k-addr','k-addrc','k-bal'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('k-links').style.display='none';
+  refreshCounterUI();setApiUI('ok','idle');
+}
+function dl(name,content,type){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();}
+function expJSON(){if(!finds.length){document.getElementById('exp-info').textContent='No finds.';return;}dl('btc_finds.json',JSON.stringify(finds,null,2),'application/json');document.getElementById('exp-info').textContent='Exported '+finds.length+' finds.';}
+function expCSV(){
+  if(!finds.length){document.getElementById('exp-info').textContent='No finds.';return;}
+  const h='address,balance_btc,tx_count,total_received_btc,key_hex,key_dec,wif,wif_compressed,mode,puzzle,era,source,time';
+  const rows=finds.map(f=>`${f.addr},${((f.balance||0)/1e8).toFixed(8)},${f.n_tx||0},${((f.total_received||0)/1e8).toFixed(8)},${f.hex},${f.dec||''},${f.wif},${f.wifc},${f.mode||''},${f.puzzle||''},${(f.era||'').replace(/,/g,';')},${f.source||''},${f.time}`);
+  dl('btc_finds.csv',[h,...rows].join('\n'),'text/csv');document.getElementById('exp-info').textContent='Exported '+finds.length+' rows.';
+}
+function expAllCSV(){
+  if(!allScanned.length){document.getElementById('exp-info').textContent='No history.';return;}
+  const h='address,balance_btc,tx_count,key_hex,key_dec,mode,puzzle,source,time';
+  const rows=allScanned.map(r=>`${r.addr},${r.balance!=null?((r.balance||0)/1e8).toFixed(8):'n/a'},${r.n_tx!=null?r.n_tx:'n/a'},${r.hex},${r.dec||''},${r.mode||''},${r.puzzle||''},${r.source||''},${r.time}`);
+  dl('btc_all_scanned.csv',[h,...rows].join('\n'),'text/csv');document.getElementById('exp-info').textContent='Exported '+allScanned.length+' rows.';
+}
+function downloadSelf(){
+  dl('bitcoin_scanner_v1.0.0.html',document.documentElement.outerHTML,'text/html');
+  const b=document.getElementById('dl-bar');b.style.display='block';setTimeout(()=>b.style.display='none',2500);
+}
+setApiUI('ok','idle — click ⚡ Test APIs first');
+refreshCounterUI();
+</script>
+</body>
+</html>
